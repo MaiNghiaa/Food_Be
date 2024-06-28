@@ -3,75 +3,81 @@ const mysql = require("mysql");
 const db = require("../Database");
 const { request } = require("http");
 const { response } = require("express");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const { resolve } = require("path");
 const { rejects } = require("assert");
 
 module.exports = {
   // Login ---------
-  Login: (request, response) => {
-    const { username, password } = request.body;
+  Login: async (req, res) => {
+    const { email, password } = req.body;
 
-    // Validate input
-    if (!username || !password) {
-      return response.status(400).send("Bắt buộc phải nhập nhé  ");
+    if (!email || !password) {
+      return res.status(400).send("Email và mật khẩu là bắt buộc.");
     }
 
-    // Use parameterized query to prevent SQL injection
-    const sql = "SELECT * FROM user WHERE username = ? AND password = ?;";
-    db.query(sql, [username, password], (err, results) => {
-      if (err) {
-        console.error("Database error:", err);
-        return response.status(500).send("Lỗi server ời");
-      }
-
-      if (results.length > 0) {
-        return response.status(200).send("Login successful");
-      } else {
-        return response.status(401).send("sai tên đăng nhập hoặc mật khẩu");
-      }
-    });
-  },
-
-  //Register
-  register: (request, response) => {
-    const {
-      username,
-      password,
-      email,
-      role,
-      phone,
-      address,
-      avatar,
-      name,
-      university,
-    } = request.body;
-
-    // Thực hiện truy vấn để thêm dữ liệu vào bảng user
-    const query = `INSERT INTO user (username, password, email, role, phone, address, avatar, name, university) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     db.query(
-      query,
-      [
-        username,
-        password,
-        email,
-        role,
-        phone,
-        address,
-        avatar,
-        name,
-        university,
-      ],
-      (error, result) => {
-        if (error) {
-          console.error("Error registering user:", error);
-          response.status(500).json({ message: "Internal server error" });
-        } else {
-          console.log("User registered successfully");
-          response
-            .status(201)
-            .json({ message: "User registered successfully" });
+      "SELECT * FROM User WHERE email = ?",
+      [email],
+      async (err, results) => {
+        if (err) return res.status(500).send("Lỗi server.");
+        if (results.length === 0) {
+          return res.status(400).send("Không tìm thấy người dùng.");
         }
+
+        const user = results[0];
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+          return res.status(400).send("Mật khẩu không hợp lệ.");
+        }
+
+        const token = jwt.sign(
+          { idnguoidung: user.idnguoidung },
+          "your_jwt_secret",
+          { expiresIn: "1h" }
+        );
+        res.status(200).json({ token });
       }
     );
   },
+
+  //Register
+  register: (req, res) => {
+    const { email, password, ten } = req.body;
+
+    if (!email || !password || !ten) {
+      return res.status(400).send("Email, mật khẩu và tên là bắt buộc.");
+    }
+
+    db.query(
+      "SELECT * FROM User WHERE email = ?",
+      [email],
+      async (err, results) => {
+        if (err) return res.status(500).send("Lỗi server.");
+        if (results.length > 0) {
+          return res.status(400).send("Người dùng đã tồn tại.");
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = {
+          email,
+          password: hashedPassword,
+          ten,
+        };
+
+        db.query(
+          "INSERT INTO User (email, password, ten) VALUES (?, ?, ?)",
+          [newUser.email, newUser.password, newUser.ten],
+          (err, results) => {
+            if (err) return res.status(500).send("Lỗi server.");
+            res.status(201).send("Đăng ký thành công.");
+          }
+        );
+      }
+    );
+  },
+
+  getProduct: (req, res) => {},
+  getType: (req, res) => {},
 };
