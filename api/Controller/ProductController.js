@@ -78,6 +78,28 @@ module.exports = {
     );
   },
 
-  getProduct: (req, res) => {},
-  getType: (req, res) => {},
+  getProduct: (req, res) => {
+    const query = "SELECT * FROM SanPham";
+
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error("Lỗi truy vấn:", err);
+        res.status(500).json({ error: "Lỗi truy vấn cơ sở dữ liệu" });
+      } else {
+        res.json(results);
+      }
+    });
+  },
+  getType: (req, res) => {
+    const query = "SELECT * FROM Type";
+
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error("Lỗi truy vấn:", err);
+        res.status(500).json({ error: "Lỗi truy vấn cơ sở dữ liệu" });
+      } else {
+        res.json(results);
+      }
+    });
+  },
 };

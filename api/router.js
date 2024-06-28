@@ -26,6 +26,7 @@ module.exports = function (app) {
   app.route("/login").post(ProductsController.Login);
   //Dang ki
   app.route("/register").post(ProductsController.register);
+
   app.route("/getType").get(ProductsController.getType);
 
   app.route("/getProduct").get(ProductsController.getProduct);
