@@ -32,12 +32,13 @@ module.exports = {
           return res.status(400).send("Mật khẩu không hợp lệ.");
         }
 
+        const Name = user.ten;
         const token = jwt.sign(
           { idnguoidung: user.idnguoidung },
           "your_jwt_secret",
           { expiresIn: "1h" }
         );
-        res.status(200).json({ token });
+        res.status(200).json({ token, Name });
       }
     );
   },
@@ -79,7 +80,33 @@ module.exports = {
   },
 
   getProduct: (req, res) => {
-    const query = "SELECT * FROM SanPham";
+    const query =
+      "SELECT SanPham.*, Type.type_name FROM   SanPham INNER JOIN   Type ON  SanPham.idType = Type.idType";
+
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error("Lỗi truy vấn:", err);
+        res.status(500).json({ error: "Lỗi truy vấn cơ sở dữ liệu" });
+      } else {
+        res.json(results);
+      }
+    });
+  },
+
+  getDetailProduct: (req, res) => {
+    const { idsp } = req.query;
+    const query = `SELECT * FROM SanPhamChiTiet Where idsp = ${idsp}`;
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error("Lỗi truy vấn:", err);
+        res.status(500).json({ error: "Lỗi truy vấn cơ sở dữ liệu" });
+      } else {
+        res.json(results);
+      }
+    });
+  },
+  getTintuc: (req, res) => {
+    const query = "SELECT * FROM TinTuc";
 
     db.query(query, (err, results) => {
       if (err) {
@@ -100,6 +127,71 @@ module.exports = {
       } else {
         res.json(results);
       }
+    });
+  },
+
+  getProfile: (req, res) => {
+    const { Name } = req.query;
+    const query = `SELECT * FROM FoodStore.User WHERE ten = ${Name}`;
+    db.query(query, (err, results) => {
+      if (err) {
+        console.error("Lỗi truy vấn:", err);
+        res.status(500).json({ error: "Lỗi truy vấn cơ sở dữ liệu" });
+      } else {
+        res.json(results);
+      }
+    });
+  },
+
+  updateProfile: (req, res) => {
+    const { formData, Name } = req.body;
+    const { tuoi, gioitinh, ngaysinh, sdt } = formData;
+    // console.log(Name, formData);
+    const query = `
+      UPDATE User 
+      SET tuoi = ?, gioitinh = ?, ngaysinh = ?, sdt = ? 
+      WHERE ten = ?
+    `;
+
+    db.query(query, [tuoi, gioitinh, ngaysinh, sdt, Name], (err, result) => {
+      if (err) {
+        console.error(err);
+        res
+          .status(500)
+          .send({ message: "Cập nhật không thành công", error: err });
+      } else {
+        res.status(200).send({ message: "Cập nhật thành công", result });
+      }
+    });
+  },
+  updatepassword: (req, res) => {
+    const { newPassword, Name } = req.body;
+
+    // Hash mật khẩu mới
+    bcrypt.hash(newPassword, 10, (hashErr, hashednewPassword) => {
+      if (hashErr) {
+        console.error("Hash mật khẩu mới thất bại:", hashErr);
+        return res
+          .status(500)
+          .send({ message: "Cập nhật không thành công", error: hashErr });
+      }
+
+      const query = `
+      UPDATE User 
+      SET password = ?
+      WHERE ten = ?
+    `;
+
+      db.query(query, [hashednewPassword, Name], (queryErr, result) => {
+        if (queryErr) {
+          console.error("Lỗi truy vấn cập nhật:", queryErr);
+          return res
+            .status(500)
+            .send({ message: "Cập nhật không thành công", error: queryErr });
+        }
+
+        res.status(200).send({ message: "Cập nhật thành công", result });
+      });
     });
   },
 };

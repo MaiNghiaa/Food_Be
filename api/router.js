@@ -30,6 +30,11 @@ module.exports = function (app) {
   app.route("/getType").get(ProductsController.getType);
 
   app.route("/getProduct").get(ProductsController.getProduct);
+  app.route("/getTintuc").get(ProductsController.getTintuc);
+  app.route("/getDetailProduct").get(ProductsController.getDetailProduct);
+  app.route("/getProfile").get(ProductsController.getProfile);
+  app.route("/updateProfile").post(ProductsController.updateProfile);
+  app.route("/updatepassword").post(ProductsController.updatepassword);
   // app
   //   .route("/Product")
   //   .post(upload.single("image"), ProductsController.postProduct);
