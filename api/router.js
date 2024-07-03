@@ -35,6 +35,7 @@ module.exports = function (app) {
   app.route("/getProfile").get(ProductsController.getProfile);
   app.route("/updateProfile").post(ProductsController.updateProfile);
   app.route("/updatepassword").post(ProductsController.updatepassword);
+  app.route("/order").post(ProductsController.Order);
   // app
   //   .route("/Product")
   //   .post(upload.single("image"), ProductsController.postProduct);

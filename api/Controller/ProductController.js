@@ -43,42 +43,51 @@ module.exports = {
     );
   },
 
-  //Register
+  // Register endpoint
   register: (req, res) => {
     const { email, password, ten } = req.body;
 
     if (!email || !password || !ten) {
-      return res.status(400).send("Email, mật khẩu và tên là bắt buộc.");
+      return res.status(400).send("Email, password, and name are required.");
     }
 
+    // Check if user already exists
     db.query(
       "SELECT * FROM User WHERE email = ?",
       [email],
-      async (err, results) => {
-        if (err) return res.status(500).send("Lỗi server.");
-        if (results.length > 0) {
-          return res.status(400).send("Người dùng đã tồn tại.");
+      (err, existingUser) => {
+        if (err) {
+          console.error("Error checking existing user:", err);
+          return res.status(500).send("Server error.");
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const newUser = {
-          email,
-          password: hashedPassword,
-          ten,
-        };
+        if (existingUser.length > 0) {
+          return res.status(400).send("Tài khoản đã được sử dụng.");
+        }
 
-        db.query(
-          "INSERT INTO User (email, password, ten) VALUES (?, ?, ?)",
-          [newUser.email, newUser.password, newUser.ten],
-          (err, results) => {
-            if (err) return res.status(500).send("Lỗi server.");
-            res.status(201).send("Đăng ký thành công.");
+        // Hash the password
+        bcrypt.hash(password, 10, (err, hashedPassword) => {
+          if (err) {
+            console.error("Error hashing password:", err);
+            return res.status(500).send("Server error.");
           }
-        );
+
+          // Insert new user into database
+          db.query(
+            "INSERT INTO User (email, password, ten) VALUES (?, ?, ?)",
+            [email, hashedPassword, ten],
+            (err, results) => {
+              if (err) {
+                console.error("Error inserting user:", err);
+                return res.status(500).send("Server error.");
+              }
+              res.status(201).send("Registered successfully.");
+            }
+          );
+        });
       }
     );
   },
-
   getProduct: (req, res) => {
     const query =
       "SELECT SanPham.*, Type.type_name FROM   SanPham INNER JOIN   Type ON  SanPham.idType = Type.idType";
@@ -193,5 +202,99 @@ module.exports = {
         res.status(200).send({ message: "Cập nhật thành công", result });
       });
     });
+  },
+
+  Order: async (req, res) => {
+    const {
+      cart,
+      name,
+      solongsanpham,
+      tongtien,
+      trangthai,
+      diachinhan,
+      tennguoinhan,
+      sdtnguoinhan,
+    } = req.body;
+
+    // Tìm idnguoidung từ bảng User dựa vào tên người dùng (name)
+    db.execute(
+      "SELECT idnguoidung FROM User WHERE ten = ?",
+      [name],
+      (err, userRows) => {
+        if (err) {
+          console.error("Error finding user:", err);
+          return res
+            .status(500)
+            .json({ error: "Đã xảy ra lỗi khi tìm người dùng" });
+        }
+
+        if (userRows.length === 0) {
+          return res.status(404).json({ error: "Không tìm thấy người dùng" });
+        }
+
+        const idnguoidung = userRows[0].idnguoidung;
+
+        // Thêm đơn hàng vào bảng DonHang
+        db.execute(
+          "INSERT INTO DonHang (idnguoidung, solongsanpham, tongtien, trangthai,diachinhan,tennguoinhan,sdtnguoinhan) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [
+            idnguoidung,
+            solongsanpham,
+            tongtien,
+            trangthai,
+            diachinhan,
+            tennguoinhan,
+            sdtnguoinhan,
+          ],
+          (err, insertDonHang) => {
+            if (err) {
+              console.error("Error inserting order:", err);
+              return res
+                .status(500)
+                .json({ error: "Đã xảy ra lỗi khi thêm đơn hàng" });
+            }
+
+            const iddonhang = insertDonHang.insertId;
+
+            // Thêm chi tiết đơn hàng vào bảng DonHangChiTiet
+            const promises = cart.map((item) => {
+              return new Promise((resolve, reject) => {
+                db.execute(
+                  "INSERT INTO DonHangChiTiet (iddonhang, hinhanh, tensanpham, price, Quantity) VALUES (?, ?, ?, ?, ?)",
+                  [
+                    iddonhang,
+                    item.hinhanh,
+                    item.tensp,
+                    item.giaban,
+                    item.quantity,
+                  ],
+                  (err, result) => {
+                    if (err) {
+                      console.error("Error inserting order detail:", err);
+                      reject(err);
+                    } else {
+                      resolve(result);
+                    }
+                  }
+                );
+              });
+            });
+
+            Promise.all(promises)
+              .then(() => {
+                res
+                  .status(200)
+                  .json({ message: "Đã thêm đơn hàng thành công" });
+              })
+              .catch((error) => {
+                console.error("Error inserting order details:", error);
+                res
+                  .status(500)
+                  .json({ error: "Đã xảy ra lỗi khi thêm chi tiết đơn hàng" });
+              });
+          }
+        );
+      }
+    );
   },
 };
