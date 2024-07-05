@@ -45,7 +45,7 @@ module.exports = {
 
   // Register endpoint
   register: (req, res) => {
-    const { email, password, ten } = req.body;
+    const { email, password, ten, role } = req.body;
 
     if (!email || !password || !ten) {
       return res.status(400).send("Email, password, and name are required.");
@@ -74,8 +74,8 @@ module.exports = {
 
           // Insert new user into database
           db.query(
-            "INSERT INTO User (email, password, ten) VALUES (?, ?, ?)",
-            [email, hashedPassword, ten],
+            "INSERT INTO User (email, password, ten,role) VALUES (?, ?, ?, ?)",
+            [email, hashedPassword, ten, role],
             (err, results) => {
               if (err) {
                 console.error("Error inserting user:", err);
@@ -204,7 +204,70 @@ module.exports = {
     });
   },
 
-  Order: async (req, res) => {
+  getOrder: (req, res) => {
+    const { name } = req.params;
+    // Tìm idnguoidung từ bảng User dựa vào tên người dùng (name)
+    db.execute(
+      "SELECT idnguoidung FROM User WHERE ten = ?",
+      [name],
+      (err, userRows) => {
+        if (err) {
+          console.error("Error finding user:", err);
+          return res
+            .status(500)
+            .json({ error: "Đã xảy ra lỗi khi tìm người dùng" });
+        }
+
+        if (userRows.length === 0) {
+          return res.status(404).json({ error: "Không tìm thấy người dùng" });
+        }
+
+        const idnguoidung = userRows[0].idnguoidung;
+        db.execute(
+          "SELECT * FROM DonHang WHERE idnguoidung = ?",
+          [idnguoidung],
+          (err, orders) => {
+            if (err) {
+              console.error("Error fetching orders:", err);
+              return res
+                .status(500)
+                .json({ error: "Đã xảy ra lỗi khi lấy đơn hàng" });
+            }
+
+            const orderIds = orders.map((order) => order.iddonhang);
+
+            if (orderIds.length > 0) {
+              db.execute(
+                `SELECT * FROM DonHangChiTiet WHERE iddonhang IN (${orderIds.join(
+                  ","
+                )})`,
+                (err, orderDetails) => {
+                  if (err) {
+                    console.error("Error fetching order details:", err);
+                    return res.status(500).json({
+                      error: "Đã xảy ra lỗi khi lấy chi tiết đơn hàng",
+                    });
+                  }
+
+                  orders.forEach((order) => {
+                    order.details = orderDetails.filter(
+                      (detail) => detail.iddonhang === order.iddonhang
+                    );
+                  });
+
+                  res.status(200).json(orders);
+                }
+              );
+            } else {
+              res.status(200).json([]);
+            }
+          }
+        );
+      }
+    );
+  },
+
+  postOrder: async (req, res) => {
     const {
       cart,
       name,
@@ -296,5 +359,85 @@ module.exports = {
         );
       }
     );
+  },
+  updateOrderbyId: (req, res) => {
+    const iddonhang = req.params.iddonhang;
+    const { trangthai } = req.body;
+
+    db.execute(
+      "UPDATE DonHang SET trangthai = ? WHERE iddonhang = ?",
+      [trangthai, iddonhang],
+      (err, result) => {
+        if (err) {
+          console.error("Error updating order:", err);
+          return res
+            .status(500)
+            .json({ error: "Đã xảy ra lỗi khi cập nhật đơn hàng" });
+        }
+
+        if (trangthai === "Đang giao") {
+          db.execute(
+            "SELECT * FROM DonHangChiTiet WHERE iddonhang = ?",
+            [iddonhang],
+            (err, orderDetails) => {
+              if (err) {
+                console.error("Error fetching order details:", err);
+                return res.status(500).json({
+                  error: "Đã xảy ra lỗi khi lấy chi tiết đơn hàng",
+                });
+              }
+
+              // Cập nhật số lượng sản phẩm trong bảng SanPham
+              const promises = orderDetails.map((detail) => {
+                return new Promise((resolve, reject) => {
+                  db.execute(
+                    "UPDATE SanPham SET soluong = soluong - ? WHERE tensp = ?",
+                    [detail.Quantity, detail.tensanpham],
+                    (err, result) => {
+                      if (err) {
+                        console.error(
+                          `Error updating quantity for product ${detail.idsp}:`,
+                          err
+                        );
+                        reject(err);
+                      } else {
+                        resolve(result);
+                      }
+                    }
+                  );
+                });
+              });
+
+              Promise.all(promises)
+                .then(() => {
+                  res
+                    .status(200)
+                    .json({ message: "Cập nhật đơn hàng thành công" });
+                })
+                .catch((error) => {
+                  console.error("Error updating product quantities:", error);
+                  res.status(500).json({
+                    error: "Đã xảy ra lỗi khi cập nhật số lượng sản phẩm",
+                  });
+                });
+            }
+          );
+        } else {
+          res.status(200).json({ message: "Cập nhật đơn hàng thành công" });
+        }
+      }
+    );
+  },
+  deleteProduct: async (req, res) => {
+    try {
+      const { idsp } = req.params;
+
+      const query = "DELETE FROM SanPham WHERE idsp = ?";
+      await db.query(query, [idsp]);
+
+      res.status(200).json({ message: "Product deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ error: "Error deleting product" });
+    }
   },
 };
