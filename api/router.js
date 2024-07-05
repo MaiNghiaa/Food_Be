@@ -22,16 +22,28 @@ module.exports = function (app) {
   app.use("/assets", express.static("assets"));
 
   //cac route
+  app.route("/getOrderAdmin").get(AdminController.getOrderAdmin);
 
-  //Dang nhập
-  app.route("/login").post(ProductsController.Login);
-  //Dang ki
-  app.route("/register").post(ProductsController.register);
+  ///
+  //loai san pham
 
+  //hien thi
   app.route("/getType").get(ProductsController.getType);
+  //them
+  app.route("/Type").post(AdminController.createType);
+  //sua
+  app.route("/Type/:id").put(AdminController.updateType);
+  //xoa
+  app.route("/Type/:id").delete(AdminController.deleteType);
+  ///
+
   //San pham
 
+  //client
   app.route("/getProduct").get(ProductsController.getProduct);
+  //
+
+  //server
   //hien thi san pham
   app.route("/getProductinadmin").get(AdminController.getProducts);
   //them san pham
@@ -44,9 +56,11 @@ module.exports = function (app) {
     .put(upload.single("hinhanh"), AdminController.updateProduct);
   //xoa san pham
   app.route("/Product/:idsp").delete(AdminController.deleteProduct);
+  ///
 
   //Tintuc
   //Hien thị tin tức
+
   app.route("/Tintuc").get(ProductsController.getTintuc);
 
   //Them
@@ -59,7 +73,13 @@ module.exports = function (app) {
     .put(upload.single("hinhanh"), AdminController.updateTinTuc);
   //xoa
   app.route("/Tintuc/:id").delete(AdminController.deleteTinTuc);
-  //Het phan tin tuc
+  ///
+  //
+  //Dang nhập
+  app.route("/login").post(ProductsController.Login);
+  //Dang ki
+  app.route("/register").post(ProductsController.register);
+  //
 
   app.route("/getDetailProduct").get(ProductsController.getDetailProduct);
   app.route("/getProfile").get(ProductsController.getProfile);
@@ -71,8 +91,5 @@ module.exports = function (app) {
   app.route("/order/:name").get(ProductsController.getOrder);
   app.route("/loginAdmin").post(AdminController.LoginAdmin);
 
-  // app
-  //   .route("/Product")
-  //   .post(upload.single("image"), ProductsController.postProduct);
   // app.route("/");
 };

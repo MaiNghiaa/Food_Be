@@ -246,4 +246,115 @@ LEFT JOIN type tp ON sp.idType = tp.idType;
       });
     });
   },
+
+  createType: (req, res) => {
+    const { type_name } = req.body;
+    if (!type_name) {
+      res.status(400).json({ error: "type_name is required" });
+      return;
+    }
+    db.query("INSERT INTO `type` SET ?", { type_name }, (err, result) => {
+      if (err) {
+        console.error("Error creating type:", err);
+        res.status(500).json({ error: "Error creating type" });
+        return;
+      }
+      res
+        .status(201)
+        .json({ message: "Type created successfully", id: result.insertId });
+    });
+  },
+  updateType: (req, res) => {
+    const { id } = req.params;
+    const { type_name } = req.body;
+    if (!type_name) {
+      res.status(400).json({ error: "type_name is required" });
+      return;
+    }
+    db.query(
+      "UPDATE `type` SET `type_name` = ? WHERE `idType` = ?",
+      [type_name, id],
+      (err, result) => {
+        if (err) {
+          console.error("Error updating type:", err);
+          res.status(500).json({ error: "Error updating type" });
+          return;
+        }
+        res.json({ message: "Type updated successfully" });
+      }
+    );
+  },
+  deleteType: (req, res) => {
+    const { id } = req.params;
+    db.query("DELETE FROM `type` WHERE `idType` = ?", id, (err, result) => {
+      if (err) {
+        console.error("Error deleting type:", err);
+        res.status(500).json({ error: "Error deleting type" });
+        return;
+      }
+      res.json({ message: "Type deleted successfully" });
+    });
+  },
+
+  getOrderAdmin: (req, res) => {
+    const sql = `
+      SELECT dh.iddonhang, dh.idnguoidung, dh.solongsanpham, dh.trangthai, dh.tongtien,
+             dh.diachinhan, dh.tennguoinhan, dh.sdtnguoinhan, dh.created_at, dh.updated_at,
+             dhct.iddonhangchitiet, dhct.tensanpham, dhct.price, dhct.Quantity, dhct.hinhanh,
+             dhct.created_at AS detail_created_at, dhct.updated_at AS detail_updated_at
+      FROM DonHang dh
+      LEFT JOIN DonHangChiTiet dhct ON dh.iddonhang = dhct.iddonhang
+    `;
+
+    db.query(sql, (error, results) => {
+      if (error) {
+        console.error("Error fetching orders with details:", error);
+        res.status(500).json({ error: "Error fetching orders with details" });
+        return;
+      }
+
+      // Biến kết quả thành một mảng chi tiết
+      const ordersWithDetails = results.reduce((acc, row) => {
+        // Tìm đơn hàng trong mảng đã có hay chưa
+        let order = acc.find((o) => o.iddonhang === row.iddonhang);
+
+        // Nếu chưa có, thêm mới đơn hàng vào mảng
+        if (!order) {
+          order = {
+            iddonhang: row.iddonhang,
+            idnguoidung: row.idnguoidung,
+            solongsanpham: row.solongsanpham,
+            trangthai: row.trangthai,
+            tongtien: row.tongtien,
+            diachinhan: row.diachinhan,
+            tennguoinhan: row.tennguoinhan,
+            sdtnguoinhan: row.sdtnguoinhan,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            details: [],
+          };
+          acc.push(order);
+        }
+
+        // Thêm chi tiết đơn hàng vào mảng chi tiết của đơn hàng
+        if (row.iddonhangchitiet) {
+          order.details.push({
+            iddonhangchitiet: row.iddonhangchitiet,
+            tensanpham: row.tensanpham,
+            price: row.price,
+            Quantity: row.Quantity,
+            hinhanh: row.hinhanh,
+            created_at: row.detail_created_at,
+            updated_at: row.detail_updated_at,
+          });
+        }
+
+        return acc;
+      }, []);
+
+      // Trả về kết quả là một mảng đơn hàng kèm chi tiết
+      console.log(ordersWithDetails);
+      res.json(ordersWithDetails);
+    });
+  },
 };
