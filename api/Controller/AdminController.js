@@ -37,12 +37,14 @@ module.exports = {
         }
 
         const Name = user.ten;
+        const role = user.role;
+
         const token = jwt.sign(
           { idnguoidung: user.idnguoidung },
           "your_jwt_secret",
           { expiresIn: "1h" }
         );
-        res.status(200).json({ token, Name });
+        res.status(200).json({ token, Name, role });
       }
     );
   },
@@ -355,6 +357,60 @@ LEFT JOIN type tp ON sp.idType = tp.idType;
       // Trả về kết quả là một mảng đơn hàng kèm chi tiết
       console.log(ordersWithDetails);
       res.json(ordersWithDetails);
+    });
+  },
+
+  getUsers: (req, res) => {
+    const query = `SELECT * FROM User`;
+    db.query(query, (err, results) => {
+      if (err) throw err;
+      res.json(results);
+    });
+  },
+  postUsers: (req, res) => {
+    const { email, password, ten, tuoi, gioitinh, ngaysinh, sdt, role } =
+      req.body;
+
+    bcrypt.hash(password, 10, (err, hash) => {
+      if (err) {
+        return res.status(500).json({ error: "Error hashing password" });
+      }
+
+      const query = `INSERT INTO User (email, password, ten, tuoi, gioitinh, ngaysinh, sdt, role) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+      db.query(
+        query,
+        [email, hash, ten, tuoi, gioitinh, ngaysinh, sdt, role],
+        (err, result) => {
+          if (err) {
+            return res
+              .status(500)
+              .json({ error: "Error inserting user into database" });
+          }
+          res.json({ id: result.insertId, ...req.body, password: undefined });
+        }
+      );
+    });
+  },
+  updateUsers: (req, res) => {
+    const { id } = req.params;
+    const { email, password, ten, tuoi, gioitinh, ngaysinh, sdt, role } =
+      req.body;
+    const query = `UPDATE User SET email = ?, password = ?, ten = ?, tuoi = ?, gioitinh = ?, ngaysinh = ?, sdt = ?, role = ? WHERE idnguoidung = ?`;
+    db.query(
+      query,
+      [email, password, ten, tuoi, gioitinh, ngaysinh, sdt, role, id],
+      (err) => {
+        if (err) throw err;
+        res.sendStatus(200);
+      }
+    );
+  },
+  deleteUsers: (req, res) => {
+    const { id } = req.params;
+    const query = `DELETE FROM User WHERE idnguoidung = ?`;
+    db.query(query, [id], (err) => {
+      if (err) throw err;
+      res.sendStatus(200);
     });
   },
 };

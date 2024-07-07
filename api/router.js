@@ -22,6 +22,12 @@ module.exports = function (app) {
   app.use("/assets", express.static("assets"));
 
   //cac route
+  //taikhoan
+  app.route("/users").get(AdminController.getUsers);
+  app.route("/users").post(AdminController.postUsers);
+  app.route("/users/:id").put(AdminController.updateUsers);
+  app.route("/users/:id").delete(AdminController.deleteUsers);
+
   app.route("/getOrderAdmin").get(AdminController.getOrderAdmin);
 
   ///

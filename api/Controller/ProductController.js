@@ -33,12 +33,14 @@ module.exports = {
         }
 
         const Name = user.ten;
+        const role = user.role;
+
         const token = jwt.sign(
           { idnguoidung: user.idnguoidung },
           "your_jwt_secret",
           { expiresIn: "1h" }
         );
-        res.status(200).json({ token, Name });
+        res.status(200).json({ token, Name, role });
       }
     );
   },
